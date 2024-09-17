@@ -29,6 +29,8 @@ let currentStep = 1; // Current step number
 let currentCircle = 0; // Current step circle
 const obj = { plan: null, kind: null, price: null }; // Holds selected plan details
 
+
+
 // Updates the active state of step circles in the sidebar
 function updateCircleSteps() {
   circleSteps.forEach(step => step.classList.remove("active")); // Clear active class from all steps
@@ -53,27 +55,35 @@ steps.forEach((step) => {
 
   // Handle "Next Step" button
   nextBtn.addEventListener("click", () => {
-    document.querySelector(`.step-${currentStep}`).style.display = "none"; // Hide current step
-    if (currentStep < 5 && validateForm()) { // Ensure the form is valid
-      currentStep++;
-      currentCircle++;
-      setTotal(); // Calculate and update the total price
+    if (validateForm()) {  // Ensure the form is valid first
+      document.querySelector(`.step-${currentStep}`).style.display = "none"; // Hide current step
+      if (currentStep < 5) { // Make sure you're not exceeding the last step
+        currentStep++;
+        currentCircle++;
+        setTotal(); // Calculate and update the total price
+      }
+      document.querySelector(`.step-${currentStep}`).style.display = "flex"; // Show the next step
+      updateCircleSteps(); // Update sidebar step indicators
+      summary(obj); // Update the summary with selected details
     }
-    document.querySelector(`.step-${currentStep}`).style.display = "flex"; // Show the next step
-    updateCircleSteps(); // Update sidebar step indicators
-    summary(obj); // Update the summary with selected details
   });
+  
 });
 
 // Updates the summary section with the selected plan and billing details
 function summary(obj) {
   const planName = document.querySelector(".plan-name");
   const planPrice = document.querySelector(".plan-price");
-  planPrice.innerHTML = `${obj.price.innerText}`; // Set plan price in the summary
-  planName.innerHTML = `${obj.plan.innerText} (${obj.kind ? "yearly" : "monthly"})`; // Show plan name and billing type
+
+  // Show the plan name and whether it's monthly or yearly
+  planName.innerHTML = `${obj.plan.innerText} (${obj.kind ? "Yearly" : "Monthly"})`;
+  
+  // Update the price displayed in the summary
+  planPrice.innerHTML = obj.price.innerText;
 }
 
-// Validates the inputs in Step 1 (Personal Info)
+
+
 // Validates the inputs in Step 1 (Personal Info)
 function validateForm() {
   let valid = true;
@@ -105,7 +115,8 @@ function validateForm() {
     
     // Validate Phone Number Field (only numbers, allows + at the beginning)
     else if (input.id === 'phone') {
-      const phoneRegex = /^\+?[0-9]*$/; // Allows only digits and optional +
+      const phoneRegex = /^\+?[0-9]{8,}$/; // Ensure there are at least 8 digits
+ // Allows only digits and optional +
       if (!phoneRegex.test(inputValue)) {
         valid = false;
         showError(input, "Please enter a valid phone number (numbers only).");
@@ -170,13 +181,32 @@ plans.forEach((plan) => {
 });
 
 // Toggles between monthly and yearly billing
+// Toggles between monthly and yearly billing
 switcher.addEventListener("click", () => {
-  const val = switcher.querySelector("input").checked; // Check if yearly is selected
-  document.querySelector(".monthly").classList.toggle("sw-active", !val); // Toggle monthly active state
-  document.querySelector(".yearly").classList.toggle("sw-active", val); // Toggle yearly active state
-  switchPrice(val); // Update plan prices based on billing type
-  obj.kind = val; // Store the billing type (yearly or monthly)
+  const isYearly = switcher.querySelector("input").checked; // Check if yearly is selected
+  document.querySelector(".monthly").classList.toggle("sw-active", !isYearly); // Toggle monthly active state
+  document.querySelector(".yearly").classList.toggle("sw-active", isYearly); // Toggle yearly active state
+  switchPrice(isYearly); // Update plan prices based on billing type
+  obj.kind = isYearly; // Store the billing type (yearly or monthly)
 });
+
+function updateAddonPrices(isYearly) {
+  const addonPrices = document.querySelectorAll(".box .price");
+  
+  // Define the add-on prices for both billing cycles
+  const monthlyAddons = [1, 2, 2];   // Monthly add-ons: Online service, Larger storage, Customizable profile
+  const yearlyAddons = [10, 20, 20]; // Yearly add-ons: Online service, Larger storage, Customizable profile
+
+  // Update each add-on price based on the selected billing type
+  addonPrices.forEach((price, index) => {
+    if (isYearly) {
+      price.innerHTML = `+$${yearlyAddons[index]}/yr`;
+    } else {
+      price.innerHTML = `+$${monthlyAddons[index]}/mo`;
+    }
+  });
+}
+
 
 // Handles add-on selection
 addons.forEach((addon) => {
@@ -216,6 +246,12 @@ function switchPrice(checked) {
       price.innerHTML = `$${monthlyPrice[index]}/mo`;
     }
   });
+
+  updateAddonPrices(checked);
+
+  // Update the obj with the currently selected plan's new price
+  const selectedPlan = document.querySelector(".plan-card.selected .plan-priced");
+  obj.price = selectedPlan; // Update price in the object for later summary
 
   // Call the setTime function to update the billing time type (monthly/yearly)
   setTime(checked);
@@ -257,7 +293,7 @@ function setTotal() {
     totalValue += parseInt(price.innerHTML.replace(/\D/g, "")); // Add add-on prices
   });
 
-  total.innerHTML = `$${totalValue}/${time ? "yr" : "mo"}`; // Update the total price display
+  total.innerHTML = `$${totalValue}/${obj.kind ? "yr" : "mo"}`;
 }
 
 // Add an event listener to the "Change" link
